@@ -6,6 +6,7 @@
         private readonly List<Trade> trades;
         private long lastOrderId;
         private readonly PriorityQueue<Order, Order> buyOrders;
+        private readonly PriorityQueue<Order, Order> sellOrders;
 
         public IEnumerable<Order> Orders => orders;
         public IEnumerable<Trade> Trades => trades;
@@ -16,6 +17,7 @@
             trades = new List<Trade>();
             lastOrderId = 0;
             buyOrders = new();
+            sellOrders = new();
         }
         public long EnqueueOrder(TradeSide side, decimal price, decimal quantity)
         {
@@ -27,9 +29,14 @@
 
         private void processSellOrder(Order order)
         {
-            makeTrade(sellOrder: order, buyOrder: buyOrders.Peek());
+            sellOrders.Enqueue(order, order);
+            if (buyOrders.Count > 0 && buyOrders.Peek().Price >= order.Price) makeTrade(sellOrder: order, buyOrder: buyOrders.Peek());
         }
-
+        private void processBuyOrder(Order order)
+        {
+            buyOrders.Enqueue(order, order);
+            if (sellOrders.Count > 0) makeTrade(sellOrder: sellOrders.Peek(), buyOrder: order);
+        }
         private void makeTrade(Order sellOrder, Order buyOrder)
         {
             var trade = new Trade(
@@ -41,12 +48,6 @@
             sellOrder.DecreaseQuantity(amount: sellOrder.Quantity);
             buyOrder.DecreaseQuantity(amount: buyOrder.Quantity);
         }
-
-        private void processBuyOrder(Order order)
-        {
-            buyOrders.Enqueue(order, order);
-        }
-
         private Order makeOrder(TradeSide side, decimal price, decimal quantity)
         {
             Interlocked.Increment(ref lastOrderId);
