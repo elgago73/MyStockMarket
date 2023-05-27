@@ -16,7 +16,7 @@
             orders = new List<Order>();
             trades = new List<Trade>();
             lastOrderId = 0;
-            buyOrders = new();
+            buyOrders = new PriorityQueue<Order, Order>(new MaxComparer());
             sellOrders = new();
         }
         public long EnqueueOrder(TradeSide side, decimal price, decimal quantity)
@@ -30,12 +30,21 @@
         private void processSellOrder(Order order)
         {
             sellOrders.Enqueue(order, order);
-            if (buyOrders.Count > 0 && buyOrders.Peek().Price >= order.Price) makeTrade(sellOrder: order, buyOrder: buyOrders.Peek());
+            while (buyOrders.Count > 0 && buyOrders.Peek().Price >= order.Price)
+            {
+                makeTrade(sellOrder: order, buyOrder: buyOrders.Peek());
+                buyOrders.Dequeue();
+            }
         }
         private void processBuyOrder(Order order)
         {
             buyOrders.Enqueue(order, order);
-            if (sellOrders.Count > 0) makeTrade(sellOrder: sellOrders.Peek(), buyOrder: order);
+            while (sellOrders.Count > 0 && sellOrders.Peek().Price <= order.Price)
+            {
+                makeTrade(sellOrder: sellOrders.Peek(), buyOrder: order);
+                sellOrders.Dequeue();
+
+            }
         }
         private void makeTrade(Order sellOrder, Order buyOrder)
         {
