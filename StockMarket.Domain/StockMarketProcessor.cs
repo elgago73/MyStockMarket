@@ -17,7 +17,7 @@
             trades = new List<Trade>();
             lastOrderId = 0;
             buyOrders = new PriorityQueue<Order, Order>(new MaxComparer());
-            sellOrders = new();
+            sellOrders = new PriorityQueue<Order, Order>(new MinComparer());
         }
         public long EnqueueOrder(TradeSide side, decimal price, decimal quantity)
         {
@@ -29,33 +29,42 @@
 
         private void processSellOrder(Order order)
         {
-            sellOrders.Enqueue(order, order);
             while (buyOrders.Count > 0 && buyOrders.Peek().Price >= order.Price)
             {
-                makeTrade(sellOrder: order, buyOrder: buyOrders.Peek());
-                buyOrders.Dequeue();
+                var peekedBuyOrder = buyOrders.Peek();
+                makeTrade(sellOrder: order, buyOrder: peekedBuyOrder);
+                buyOrders.Dequeue();   
+            }
+            if (order.Quantity > 0)
+            {
+                sellOrders.Enqueue(order, order);
             }
         }
         private void processBuyOrder(Order order)
         {
-            buyOrders.Enqueue(order, order);
             while (sellOrders.Count > 0 && sellOrders.Peek().Price <= order.Price)
             {
-                makeTrade(sellOrder: sellOrders.Peek(), buyOrder: order);
+                Order peekedSellOrder = sellOrders.Peek();
+                makeTrade(sellOrder: peekedSellOrder, buyOrder: order);
                 sellOrders.Dequeue();
 
+            }
+            if (order.Quantity > 0)
+            {
+                buyOrders.Enqueue(order, order);
             }
         }
         private void makeTrade(Order sellOrder, Order buyOrder)
         {
+            var quantity = Math.Min(sellOrder.Quantity, buyOrder.Quantity);
             var trade = new Trade(
                 sellOrder.Id,
                 buyOrder.Id,
                 sellOrder.Price,
-                sellOrder.Quantity);
+                quantity);
             trades.Add(trade);
-            sellOrder.DecreaseQuantity(amount: sellOrder.Quantity);
-            buyOrder.DecreaseQuantity(amount: buyOrder.Quantity);
+            sellOrder.DecreaseQuantity(amount: quantity);
+            buyOrder.DecreaseQuantity(amount: quantity);
         }
         private Order makeOrder(TradeSide side, decimal price, decimal quantity)
         {

@@ -9,6 +9,8 @@ namespace StockMarket.Domain.Test
         {
             sut = new StockMarketProcessor();
         }
+
+
         [Fact]
         public void EnqueueOrder_Should_Process_Sell_Order_When_Buy_Order_Is_Already_Enqueued_Test()
         {
@@ -40,6 +42,8 @@ namespace StockMarket.Domain.Test
                 Quantity = 1M
             });
         }
+
+
         [Fact]
         public void EnqueueOrder_Should_Process_Buy_Order_When_Sell_Order_Is_Already_Enqueued_Test()
         {
@@ -70,6 +74,8 @@ namespace StockMarket.Domain.Test
                 Quantity = 2M
             });
         }
+
+
         [Fact]
         public void EnqueueOrder_Should_Not_Process_Buy_Order_When_Sell_Order_Is_Not_Match_Test()
         {
@@ -93,6 +99,8 @@ namespace StockMarket.Domain.Test
             });
             Assert.Empty(sut.Trades);
         }
+
+
         [Fact]
         public void EnqueueOrder_Should_Not_Process_Sell_Order_When_Buy_Order_Is_Not_Match_Test()
         {
@@ -116,6 +124,8 @@ namespace StockMarket.Domain.Test
             });
             Assert.Empty(sut.Trades);
         }
+
+
         [Fact]
         public void EnqueueOrder_Should_Not_Process_Sell_Order_When_No_Buy_Order_Has_Been_Enqueued()
         {
@@ -140,15 +150,97 @@ namespace StockMarket.Domain.Test
             });
             Assert.Empty(sut.Trades);
         }
-        //[Fact]
-        //public void EnqueueOrder_Should_Process_Sell_Order_When_Multiple_Buy_Orders_Are_Already_Enqueued_Test()
-        //{
-        //    //Arrange
-        //    var buyOrderId1 = sut.EnqueueOrder(side: TradeSide.Buy, price: 1500M, quantity: 2);
-        //    var buyOrderId2 = sut.EnqueueOrder(side: TradeSide.Buy, price: 1400M, quantity: 2);
-        //    //Act
-        //    var sellOrderId1 = sut.EnqueueOrder(side: TradeSide.Sell, price: 1500M, quantity: 2);
-        //    //Assert
-        //}
+
+
+        [Fact]
+        public void EnqueueOrder_Should_Process_Buy_Order_When_Multiple_Sell_Orders_Are_Already_Enqueued_Test()
+        {
+            //Arrange
+            var buyOrderId1 = sut.EnqueueOrder(side: TradeSide.Buy, price: 1500M, quantity: 1);
+            var buyOrderId2 = sut.EnqueueOrder(side: TradeSide.Buy, price: 1600M, quantity: 1);
+            //Act
+            var sellOrderId = sut.EnqueueOrder(side: TradeSide.Sell, price: 1500M, quantity: 2);
+            //Assert
+            Assert.Equal(3, sut.Orders.Count());
+            sut.Orders.First().Should().BeEquivalentTo(new
+            {
+                Side = TradeSide.Buy,
+                Price = 1500M,
+                Quantity = 0M
+            });
+            sut.Orders.Skip(1).First().Should().BeEquivalentTo(new
+            {
+                Side = TradeSide.Buy,
+                Price = 1600M,
+                Quantity = 0M
+            });
+            sut.Orders.Skip(2).First().Should().BeEquivalentTo(new
+            {
+                Side = TradeSide.Sell,
+                Price = 1500M,
+                Quantity = 0M
+            });
+            Assert.Equal(2, sut.Trades.Count());
+            sut.Trades.First().Should().BeEquivalentTo(new
+            {
+                BuyOrderId = buyOrderId2,
+                SellOrderId = sellOrderId,
+                Price = 1500M,
+                Quantity = 1M
+            });
+            sut.Trades.Skip(1).First().Should().BeEquivalentTo(new
+            {
+                BuyOrderId = buyOrderId1,
+                SellOrderId = sellOrderId,
+                Price = 1500M,
+                Quantity = 1M
+            });
+        }
+
+
+        [Fact]
+        public void EnqueueOrder_Should_Process_Sell_Order_When_Multiple_Buy_Orders_Are_Already_Enqueued_Test()
+        {
+            //Arrange
+            var sellOrderId1 = sut.EnqueueOrder(side: TradeSide.Sell, price: 1500M, quantity: 1M);
+            var sellOrderId2 = sut.EnqueueOrder(side: TradeSide.Sell, price: 1400M, quantity: 1M);
+            //Act
+            var buyOrderId = sut.EnqueueOrder(side: TradeSide.Buy, price: 1500M, quantity: 2M);
+            //Assert
+            Assert.Equal(3, sut.Orders.Count());
+            sut.Orders.First().Should().BeEquivalentTo(new
+            {
+                Side = TradeSide.Sell,
+                Price = 1500M,
+                Quantity = 0M
+            });
+            sut.Orders.Skip(1).First().Should().BeEquivalentTo(new
+            {
+                Side = TradeSide.Sell,
+                Price = 1400M,
+                Quantity = 0M
+            });
+            sut.Orders.Skip(2).First().Should().BeEquivalentTo(new
+            {
+                Side = TradeSide.Buy,
+                Price = 1500M,
+                Quantity = 0M
+            });
+            Assert.Equal(2, sut.Trades.Count());
+            sut.Trades.First().Should().BeEquivalentTo(new
+            {
+                BuyOrderId = buyOrderId,
+                SellOrderId = sellOrderId2,
+                Price = 1400M,
+                Quantity = 1M
+            });
+            sut.Trades.Skip(1).First().Should().BeEquivalentTo(new
+            {
+                BuyOrderId = buyOrderId,
+                SellOrderId = sellOrderId1,
+                Price = 1500M,
+                Quantity = 1M
+            });
+        }
     }
 }
