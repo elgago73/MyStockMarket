@@ -12,8 +12,8 @@ namespace StockMarket.Domain
         {
             if(x?.Price < y?.Price) return 1;
             if(x?.Price > y?.Price) return -1;
-            if(x?.Id < y?.Id) return 1;
-            if(x?.Id > y?.Id) return -1;
+            if(x?.Id < y?.Id) return -1;
+            if(x?.Id > y?.Id) return 1;
             return 0;
         }
     }

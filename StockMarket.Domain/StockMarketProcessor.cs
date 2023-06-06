@@ -29,11 +29,11 @@
 
         private void processSellOrder(Order order)
         {
-            while (buyOrders.Count > 0 && buyOrders.Peek().Price >= order.Price)
+            while (buyOrders.Count > 0 && buyOrders.Peek().Price >= order.Price && order.Quantity > 0)
             {
                 var peekedBuyOrder = buyOrders.Peek();
                 makeTrade(sellOrder: order, buyOrder: peekedBuyOrder);
-                buyOrders.Dequeue();   
+                if (peekedBuyOrder.Quantity == 0) buyOrders.Dequeue();
             }
             if (order.Quantity > 0)
             {
@@ -42,11 +42,12 @@
         }
         private void processBuyOrder(Order order)
         {
-            while (sellOrders.Count > 0 && sellOrders.Peek().Price <= order.Price)
+            while (sellOrders.Count > 0 && sellOrders.Peek().Price <= order.Price && order.Quantity > 0)
             {
                 Order peekedSellOrder = sellOrders.Peek();
                 makeTrade(sellOrder: peekedSellOrder, buyOrder: order);
-                sellOrders.Dequeue();
+                if (peekedSellOrder.Quantity == 0) sellOrders.Dequeue();
+
 
             }
             if (order.Quantity > 0)
