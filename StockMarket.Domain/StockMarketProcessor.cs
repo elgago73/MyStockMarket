@@ -1,4 +1,7 @@
-﻿namespace StockMarket.Domain
+﻿using StockMarket.Domain.Comparers;
+using System.Security.Cryptography.X509Certificates;
+
+namespace StockMarket.Domain
 {
     public class StockMarketProcessor
     {
@@ -22,51 +25,63 @@
         public long EnqueueOrder(TradeSide side, decimal price, decimal quantity)
         {
             var order = makeOrder(side, price, quantity);
-            if (order.Side == TradeSide.Buy) processBuyOrder(order);
-            else processSellOrder(order);
+
+            if (order.Side == TradeSide.Buy)
+            {
+                matchOrder(order: order,
+                    orders: buyOrders,
+                    matchingOrders: sellOrders,
+                    comparePriceDelegate: (decimal price1, decimal price2) => price1 <= price2);
+            }
+            else
+            {
+                matchOrder(order: order,
+                    orders: sellOrders,
+                    matchingOrders: buyOrders,
+                    comparePriceDelegate: (decimal price1, decimal price2) => price1 >= price2);
+            }
+
             return order.Id;
         }
 
-        private void processSellOrder(Order order)
+        private void matchOrder(Order order,
+                                     PriorityQueue<Order, Order> orders,
+                                     PriorityQueue<Order, Order> matchingOrders,
+                                     Func<decimal, decimal, bool> comparePriceDelegate)
         {
-            while (buyOrders.Count > 0 && buyOrders.Peek().Price >= order.Price && order.Quantity > 0)
+            while(order.Quantity > 0 && matchingOrders.Count > 0 && comparePriceDelegate(matchingOrders.Peek().Price, order.Price))
             {
-                var peekedBuyOrder = buyOrders.Peek();
-                makeTrade(sellOrder: order, buyOrder: peekedBuyOrder);
-                if (peekedBuyOrder.Quantity == 0) buyOrders.Dequeue();
-            }
-            if (order.Quantity > 0)
-            {
-                sellOrders.Enqueue(order, order);
-            }
-        }
-        private void processBuyOrder(Order order)
-        {
-            while (sellOrders.Count > 0 && sellOrders.Peek().Price <= order.Price && order.Quantity > 0)
-            {
-                Order peekedSellOrder = sellOrders.Peek();
-                makeTrade(sellOrder: peekedSellOrder, buyOrder: order);
-                if (peekedSellOrder.Quantity == 0) sellOrders.Dequeue();
-
+                var peekedMatchingOrder = matchingOrders.Peek();
+                makeTrade(peekedMatchingOrder, order);
+                if (peekedMatchingOrder.Quantity == 0) matchingOrders.Dequeue();
 
             }
-            if (order.Quantity > 0)
-            {
-                buyOrders.Enqueue(order, order);
-            }
+
+            if (order.Quantity > 0) orders.Enqueue(order, order);
         }
-        private void makeTrade(Order sellOrder, Order buyOrder)
+
+        private void makeTrade(Order order1, Order order2)
         {
-            var quantity = Math.Min(sellOrder.Quantity, buyOrder.Quantity);
+            (Order sellOrder, Order BuyOrder) = findOrders(order1, order2);
+            var quantity = Math.Min(sellOrder.Quantity, BuyOrder.Quantity);
+           
             var trade = new Trade(
                 sellOrder.Id,
-                buyOrder.Id,
+                BuyOrder.Id,
                 sellOrder.Price,
                 quantity);
             trades.Add(trade);
+            
             sellOrder.DecreaseQuantity(amount: quantity);
-            buyOrder.DecreaseQuantity(amount: quantity);
+            BuyOrder.DecreaseQuantity(amount: quantity);
         }
+
+        private static (Order sellOrder, Order BuyOrder) findOrders(Order order1, Order order2)
+        {
+            if(order1.Side == TradeSide.Sell) return (sellOrder: order1, BuyOrder: order2);
+            return (sellOrder: order2, BuyOrder: order1);
+        }
+
         private Order makeOrder(TradeSide side, decimal price, decimal quantity)
         {
             Interlocked.Increment(ref lastOrderId);
